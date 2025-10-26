@@ -1,12 +1,12 @@
 #!/bin/sh
 
-ROOTFS_DIR=$(pwd)
+ROOTFS_DIR=$(pwd)/freeroot
 export PATH=$PATH:~/.local/usr/bin
 max_retries=50
 timeout=1
 ARCH=$(uname -m)
 
-# Определяем архитектуру для скачивания rootfs
+# Определяем архитектуру для скачивания proot
 if [ "$ARCH" = "x86_64" ]; then
   ARCH_ALT=amd64
 elif [ "$ARCH" = "aarch64" ]; then
@@ -16,7 +16,7 @@ else
   exit 1
 fi
 
-# Установка rootfs
+# Установка rootfs Debian 13
 if [ ! -e $ROOTFS_DIR/.installed ]; then
   echo "#######################################################################################"
   echo "#"
@@ -32,18 +32,18 @@ fi
 case $install_debian in
   [yY][eE][sS])
     echo "Downloading Debian 13 rootfs..."
-    wget --tries=$max_retries --timeout=$timeout --no-hsts -O /tmp/debian-rootfs.tar.xz \
-      "https://github.com/debootstrap/debootstrap/releases/download/debian-13.0/debian-13.0-rootfs.tar.xz"
-
     mkdir -p $ROOTFS_DIR
+    wget --tries=$max_retries --timeout=$timeout --no-hsts -O /tmp/debian-rootfs.tar.xz \
+      "https://cdimage.debian.org/images/cloud/trixie/20251006-2257/debian-13-generic-amd64-20251006-2257.tar.xz"
+
     tar -xJf /tmp/debian-rootfs.tar.xz -C $ROOTFS_DIR
 
-    # Создаем /root для корректной работы proot
+    # Создаем /root для proot
     mkdir -p $ROOTFS_DIR/root
 
     # Проверка /bin/sh
-    if [ ! -f "$ROOTFS_DIR/bin/sh" ]; then
-      echo "Error: /bin/sh not found in rootfs!"
+    if [ ! -f "$ROOTFS_DIR/bin/sh" ] && [ ! -f "$ROOTFS_DIR/usr/bin/sh" ]; then
+      echo "Error: /bin/sh or /usr/bin/sh not found in rootfs!"
       exit 1
     fi
     ;;
@@ -62,10 +62,8 @@ if [ ! -e $ROOTFS_DIR/usr/local/bin/proot ]; then
 fi
 
 # Настройка DNS
-if [ ! -e $ROOTFS_DIR/etc/resolv.conf ]; then
-  mkdir -p $ROOTFS_DIR/etc
-  echo -e "nameserver 1.1.1.1\nnameserver 1.0.0.1" > $ROOTFS_DIR/etc/resolv.conf
-fi
+mkdir -p $ROOTFS_DIR/etc
+echo -e "nameserver 1.1.1.1\nnameserver 1.0.0.1" > $ROOTFS_DIR/etc/resolv.conf
 
 # Создание файла .installed
 touch $ROOTFS_DIR/.installed
@@ -84,9 +82,19 @@ display_gg() {
 clear
 display_gg
 
+# Определяем shell для запуска
+if [ -f "$ROOTFS_DIR/bin/sh" ]; then
+  SHELL_PATH="/bin/sh"
+elif [ -f "$ROOTFS_DIR/usr/bin/sh" ]; then
+  SHELL_PATH="/usr/bin/sh"
+else
+  echo "Error: No shell found in rootfs!"
+  exit 1
+fi
+
 # Запуск proot с Debian 13
 $ROOTFS_DIR/usr/local/bin/proot \
   --rootfs="${ROOTFS_DIR}" \
   -0 -w "/root" \
   -b /dev -b /sys -b /proc -b /etc/resolv.conf \
-  --kill-on-exit /bin/bash
+  --kill-on-exit $SHELL_PATH
