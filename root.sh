@@ -34,7 +34,7 @@ case $install_ubuntu in
         if [ ! -f "$ROOTFS_FILE" ]; then
             echo "Downloading Ubuntu rootfs..."
             wget --tries=$MAX_RETRIES --timeout=$TIMEOUT --no-hsts -O "$ROOTFS_FILE" \
-            "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04.3/release/ubuntu-base-24.04.3-base-${ARCH}.tar.gz" || {
+            "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04.3/release/ubuntu-base-24.04.3-base-${ARCH_ALT}.tar.gz" || {
                 echo "Failed to download rootfs"
                 exit 1
             }
